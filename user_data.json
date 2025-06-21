@@ -1,0 +1,49 @@
+{
+  "8188636934": {
+    "frequency": 15,
+    "group_links": [
+      "https://t.me/fsdgdfgasfsdff",
+      "https://t.me/dsfsdgsdfds"
+    ],
+    "randomizer": {
+      "enabled": false,
+      "value": 0
+    },
+    "running": false,
+    "forward_from_chat": null,
+    "forward_msg_id": null,
+    "message": "Пиу"
+  },
+  "6060082547": {
+    "frequency": 12,
+    "group_links": [
+      "https://t.me/ijdsfojisdhfusdhu",
+      "https://t.me/eouexj"
+    ],
+    "randomizer": {
+      "enabled": false,
+      "value": 0
+    },
+    "running": false,
+    "message": "Скупаю ваш mm2 за ₽/ рб/звезды( на баланс)\nПродам звезды на баланс \nКурс 1.45",
+    "forward_from_chat": null,
+    "forward_msg_id": null,
+    "photo_path": "temp/AQADXfgxG5gLuEp9.jpg"
+  },
+  "7787549197": {
+    "frequency": 12,
+    "group_links": [
+      "https://t.me/ijdsfojisdhfusdhu"
+    ],
+    "randomizer": {
+      "enabled": false,
+      "value": 0
+    },
+    "running": false,
+    "message": "Наличие",
+    "forward_from_chat": null,
+    "forward_msg_id": null,
+    "photo": "AgACAgIAAxkBAAICvGhWzYZGhx5YMbCIE8gr6Db2lT41AALs9TEby8y5Som3jDQfZaBLAQADAgADeQADNgQ",
+    "photo_path": "temp/AQAD7PUxG8vMuUp-.jpg"
+  }
+}
