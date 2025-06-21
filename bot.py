@@ -3,6 +3,7 @@ import json
 import os
 import random
 import aiofiles
+from aiohttp import web
 from aiogram import types
 from aiogram import Bot, Dispatcher, types
 from aiogram.enums import ParseMode
@@ -349,9 +350,31 @@ async def on_startup():
     else:
         print("Telethon: сессия не авторизована, необходимо войти через бота")
 
+async def start_webserver():
+    port = int(os.getenv("PORT", 8000))
+
+    async def handle(request):
+        return web.Response(text="OK")
+
+    app = web.Application()
+    app.add_routes([web.get("/", handle)])
+
+    runner = web.AppRunner(app)
+    await runner.setup()
+
+    site = web.TCPSite(runner, "0.0.0.0", port)
+    await site.start()
+    print(f"HTTP сервер запущен на порту {port}")
+
 async def main():
     await on_startup()
+    webserver_task = asyncio.create_task(start_webserver())  # запускаем веб-сервер параллельно
     await dp.start_polling(bot)
+    webserver_task.cancel()
+    try:
+        await webserver_task
+    except asyncio.CancelledError:
+        pass
 
 if __name__ == '__main__':
     print("Бот запущен")
