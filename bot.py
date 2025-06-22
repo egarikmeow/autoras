@@ -231,10 +231,11 @@ async def handle_photo_action(message: types.Message, state: FSMContext):
 
     os.makedirs('temp', exist_ok=True)
 
-    file_bytes = await bot.download_file(file_info.file_path)  # await добавлен!
+    file_stream = await bot.download_file(file_info.file_path) 
+    file_bytes = file_stream.read() 
 
     async with aiofiles.open(file_path, 'wb') as f:
-        await f.write(file_bytes)
+        await f.write(file_bytes) 
 
     user_config['photo_path'] = file_path
     user_config['message'] = message.caption or ""
@@ -257,10 +258,11 @@ async def set_message(message: types.Message, state: FSMContext):
 
         os.makedirs('temp', exist_ok=True)
 
-        file_bytes = await bot.download_file(file_info.file_path)  # await добавлен!
+        file_stream = await bot.download_file(file_info.file_path)  # await — получаем BytesIO
+        file_bytes = file_stream.read()  # читаем байты из BytesIO
 
         async with aiofiles.open(file_path, 'wb') as f:
-            await f.write(file_bytes)
+            await f.write(file_bytes)  # пишем байты
 
         user_config['photo_path'] = file_path
         user_config['message'] = message.caption or ""
