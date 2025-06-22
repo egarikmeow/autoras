@@ -231,7 +231,7 @@ async def handle_photo_action(message: types.Message, state: FSMContext):
 
     os.makedirs('temp', exist_ok=True)
 
-    file_stream = await bot.download_file(file_info.file_path)
+    file_stream = bot.download_file(file_info.file_path)  # без await
     file_bytes = file_stream.read()
 
     async with aiofiles.open(file_path, 'wb') as f:
@@ -246,6 +246,7 @@ async def handle_photo_action(message: types.Message, state: FSMContext):
     await message.answer("✅ Фото добавлено и сохранено для рассылки.", reply_markup=main_menu(message.from_user.id))
     await state.clear()
 
+
 @dp.message(SpamStates.waiting_for_message)
 async def set_message(message: types.Message, state: FSMContext):
     user_config = get_user_config(message.from_user.id)
@@ -258,7 +259,8 @@ async def set_message(message: types.Message, state: FSMContext):
 
         os.makedirs('temp', exist_ok=True)
 
-        file_bytes = await bot.download_file(file_info.file_path)
+        file_stream = bot.download_file(file_info.file_path)  # без await
+        file_bytes = file_stream.read()
 
         async with aiofiles.open(file_path, 'wb') as f:
             await f.write(file_bytes)
