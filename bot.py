@@ -239,7 +239,8 @@ async def handle_photo_action(message: types.Message, state: FSMContext):
 
     os.makedirs('temp', exist_ok=True)
 
-    file_bytes = await bot.download_file(file_info.file_path)
+    file_stream = await bot.download_file(file_info.file_path)
+    file_bytes = file_stream.read()  # Преобразуем BytesIO → bytes
 
     async with aiofiles.open(file_path, 'wb') as f:
         await f.write(file_bytes)
