@@ -14,7 +14,7 @@ from aiogram.fsm.context import FSMContext
 from telethon import TelegramClient
 from telethon.errors.rpcerrorlist import ChatWriteForbiddenError, SessionPasswordNeededError
 
-API_TOKEN = '7762245807:AAF5DdRUXGUISjuQJdPRMjOHYjaUQp-O5d8'
+API_TOKEN = '7762245807:AAH0CpTsT7Tpu9sJcBYdUKoiqgs6I5vQ0k8'
 TESTER_ID = 6060082547
 TELEGRAM_API_ID = 24144091
 TELEGRAM_API_HASH = '35f8ffb23ce7378da704a39810962c61'
@@ -65,13 +65,10 @@ class SpamStates(StatesGroup):
     waiting_for_message = State()
     waiting_for_group = State()
     waiting_for_random_value = State()
-    waiting_for_topic_id = State()  # Новый стейт для айди топика
+    waiting_for_topic_id = State() 
 
-# Новый стейт для выбора действия с фото в сообщении
 class MessagePhotoActionStates(StatesGroup):
     waiting_for_photo_action = State()
-
-# Функции клавиатур
 
 def main_menu(user_id):
     user_config = get_user_config(user_id)
@@ -117,14 +114,12 @@ def photo_action_menu(photo_exists: bool):
              InlineKeyboardButton(text="Назад", callback_data="back")]
         ])
 
-# Старт бота
 @dp.message(CommandStart())
 async def cmd_start(message: types.Message):
     if message.from_user.id != TESTER_ID:
         return await message.answer("❌ Нет доступа")
     await message.answer("Привет, это бот для авто рассылки", reply_markup=main_menu(message.from_user.id))
 
-# Обработка callback query
 @dp.callback_query()
 async def callback_handler(callback: types.CallbackQuery, state: FSMContext):
     if callback.from_user.id != TESTER_ID:
@@ -147,7 +142,6 @@ async def callback_handler(callback: types.CallbackQuery, state: FSMContext):
         await state.set_state(SpamStates.waiting_for_frequency)
 
     elif data == "set_msg":
-        # При входе показываем кнопки добавить фото / удалить фото + назад в зависимости от наличия фото
         keyboard = photo_action_menu(bool(user_config.get('photo_path')))
         await callback.message.answer(
             "Введите сообщение для рассылки (просто напишите текст, или выберите действие с фото):",
@@ -225,7 +219,6 @@ async def callback_handler(callback: types.CallbackQuery, state: FSMContext):
             await callback.message.answer("✅ Рассылка запущена", reply_markup=main_menu(user_id))
             asyncio.create_task(spammer(user_id))
 
-# Обработка фото при выборе добавить фото
 @dp.message(MessagePhotoActionStates.waiting_for_photo_action)
 async def handle_photo_action(message: types.Message, state: FSMContext):
     user_config = get_user_config(message.from_user.id)
@@ -240,7 +233,7 @@ async def handle_photo_action(message: types.Message, state: FSMContext):
     os.makedirs('temp', exist_ok=True)
 
     file_stream = await bot.download_file(file_info.file_path)
-    file_bytes = file_stream.read()  # Преобразуем BytesIO → bytes
+    file_bytes = file_stream.read()
 
     async with aiofiles.open(file_path, 'wb') as f:
         await f.write(file_bytes)
@@ -254,13 +247,11 @@ async def handle_photo_action(message: types.Message, state: FSMContext):
     await message.answer("✅ Фото добавлено и сохранено для рассылки.", reply_markup=main_menu(message.from_user.id))
     await state.clear()
 
-# Обработка текста/фото при настройке сообщения (если пользователь не нажимал кнопки)
 @dp.message(SpamStates.waiting_for_message)
 async def set_message(message: types.Message, state: FSMContext):
     user_config = get_user_config(message.from_user.id)
 
     if message.photo:
-        # Если фото пришло без нажатия кнопок - просто сохраняем фото и текст, как раньше
         photo = message.photo[-1]
         file_id = photo.file_id
         file_info = await bot.get_file(file_id)
