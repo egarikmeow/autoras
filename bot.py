@@ -14,8 +14,8 @@ from aiogram.fsm.context import FSMContext
 from telethon import TelegramClient
 from telethon.errors.rpcerrorlist import ChatWriteForbiddenError, SessionPasswordNeededError
 
-API_TOKEN = '7762245807:AAH0CpTsT7Tpu9sJcBYdUKoiqgs6I5vQ0k8'
-TESTER_ID = 6060082547
+API_TOKEN = '7762245807:AAFjiidYjB0KsCXo64rQFe9G8KUW_gdeDzM'
+TESTER_ID = 8188636934
 TELEGRAM_API_ID = 24144091
 TELEGRAM_API_HASH = '35f8ffb23ce7378da704a39810962c61'
 
@@ -43,10 +43,9 @@ def get_user_config(user_id: int):
     if uid not in all_users_data:
         all_users_data[uid] = {
             'frequency': 12,
-            'group_links': [],          # format: ["group_link"] или ["group_link|topic_id"]
+            'group_links': [],  
             'randomizer': {'enabled': False, 'value': 0},
             'running': False,
-            # новое поле для работы с фото в настройках
             'photo_path': None,
             'message': '',
             'forward_from_chat': None,
