@@ -4,7 +4,6 @@ import os
 import random
 import aiofiles
 from aiohttp import web
-from aiogram import types
 from aiogram import Bot, Dispatcher, types
 from aiogram.enums import ParseMode
 from aiogram.filters import CommandStart
@@ -16,7 +15,7 @@ from telethon import TelegramClient
 from telethon.errors.rpcerrorlist import ChatWriteForbiddenError, SessionPasswordNeededError
 
 API_TOKEN = '7762245807:AAH_4SIIHqqDKugyvkTZzQUyMBoMC8P5c_4'
-TESTER_ID = 6060082547
+TESTER_ID = 8188636934
 TELEGRAM_API_ID = 24144091
 TELEGRAM_API_HASH = '35f8ffb23ce7378da704a39810962c61'
 
@@ -44,9 +43,14 @@ def get_user_config(user_id: int):
     if uid not in all_users_data:
         all_users_data[uid] = {
             'frequency': 12,
-            'group_links': [],
+            'group_links': [],          # format: ["group_link"] или ["group_link|topic_id"]
             'randomizer': {'enabled': False, 'value': 0},
-            'running': False
+            'running': False,
+            # новое поле для работы с фото в настройках
+            'photo_path': None,
+            'message': '',
+            'forward_from_chat': None,
+            'forward_msg_id': None
         }
         save_user_data(all_users_data)
     return all_users_data[uid]
@@ -61,8 +65,13 @@ class SpamStates(StatesGroup):
     waiting_for_message = State()
     waiting_for_group = State()
     waiting_for_random_value = State()
+    waiting_for_topic_id = State()  # Новый стейт для айди топика
 
-user_login_data = {}
+# Новый стейт для выбора действия с фото в сообщении
+class MessagePhotoActionStates(StatesGroup):
+    waiting_for_photo_action = State()
+
+# Функции клавиатур
 
 def main_menu(user_id):
     user_config = get_user_config(user_id)
@@ -96,12 +105,26 @@ def back_button():
         [InlineKeyboardButton(text="Назад", callback_data="back")]
     ])
 
+def photo_action_menu(photo_exists: bool):
+    if photo_exists:
+        return InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="Удалить фото", callback_data="del_photo"),
+             InlineKeyboardButton(text="Назад", callback_data="back")]
+        ])
+    else:
+        return InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="Добавить фото", callback_data="add_photo"),
+             InlineKeyboardButton(text="Назад", callback_data="back")]
+        ])
+
+# Старт бота
 @dp.message(CommandStart())
 async def cmd_start(message: types.Message):
     if message.from_user.id != TESTER_ID:
         return await message.answer("❌ Нет доступа")
     await message.answer("Привет, это бот для авто рассылки", reply_markup=main_menu(message.from_user.id))
 
+# Обработка callback query
 @dp.callback_query()
 async def callback_handler(callback: types.CallbackQuery, state: FSMContext):
     if callback.from_user.id != TESTER_ID:
@@ -124,8 +147,29 @@ async def callback_handler(callback: types.CallbackQuery, state: FSMContext):
         await state.set_state(SpamStates.waiting_for_frequency)
 
     elif data == "set_msg":
-        await callback.message.answer("Введите сообщение для рассылки (можно переслать сообщение):", reply_markup=back_button())
+        # При входе показываем кнопки добавить фото / удалить фото + назад в зависимости от наличия фото
+        keyboard = photo_action_menu(bool(user_config.get('photo_path')))
+        await callback.message.answer(
+            "Введите сообщение для рассылки (просто напишите текст, или выберите действие с фото):",
+            reply_markup=keyboard)
         await state.set_state(SpamStates.waiting_for_message)
+
+    elif data == "add_photo":
+        await callback.message.answer("Отправьте фото для рассылки:", reply_markup=back_button())
+        await state.set_state(MessagePhotoActionStates.waiting_for_photo_action)
+
+    elif data == "del_photo":
+        if user_config.get('photo_path'):
+            try:
+                os.remove(user_config['photo_path'])
+            except:
+                pass
+            user_config['photo_path'] = None
+            save_user_data(all_users_data)
+            await callback.message.answer("✅ Фото удалено.", reply_markup=main_menu(user_id))
+        else:
+            await callback.message.answer("Фото отсутствует.", reply_markup=main_menu(user_id))
+        await state.clear()
 
     elif data == "random_menu":
         await callback.message.answer("Меню рандомайзера", reply_markup=randomizer_menu())
@@ -167,13 +211,13 @@ async def callback_handler(callback: types.CallbackQuery, state: FSMContext):
             save_user_data(all_users_data)
             await callback.message.answer("⛔️ Рассылка остановлена", reply_markup=main_menu(user_id))
         else:
-            if not user_config['group_links'] or (not user_config.get('message') and not (user_config.get('forward_from_chat') and user_config.get('forward_msg_id'))):
+            if not user_config['group_links'] or (not user_config.get('message') and not (user_config.get('forward_from_chat') and user_config.get('forward_msg_id')) and not user_config.get('photo_path')):
                 await callback.message.answer("❌ Убедитесь, что заданы группы и сообщение.", reply_markup=main_menu(user_id))
                 return
-            if not client.is_connected():  # <- без await
+            if not client.is_connected():
                 await callback.message.answer("❌ Телеграм клиент не подключен. Попробуйте войти через меню.", reply_markup=main_menu(user_id))
                 return
-            if not await client.is_user_authorized():  # <- с await
+            if not await client.is_user_authorized():
                 await callback.message.answer("❌ Телеграм клиент не авторизован. Войдите через меню.", reply_markup=main_menu(user_id))
                 return
             user_config['running'] = True
@@ -181,44 +225,79 @@ async def callback_handler(callback: types.CallbackQuery, state: FSMContext):
             await callback.message.answer("✅ Рассылка запущена", reply_markup=main_menu(user_id))
             asyncio.create_task(spammer(user_id))
 
-@dp.message(AuthStates.waiting_for_phone)
-async def process_phone(message: types.Message, state: FSMContext):
-    phone = message.text.strip()
-    await state.update_data(phone=phone)
-    try:
-        await client.send_code_request(phone)
-        await message.answer("Код отправлен! Введите код в формате codeXXXXX (например, code12345):")
-        await state.set_state(AuthStates.waiting_for_code)
-    except Exception as e:
-        await message.answer(f"Ошибка при отправке кода: {e}\nПопробуйте ещё раз.")
-        await state.set_state(AuthStates.waiting_for_phone)
+# Обработка фото при выборе добавить фото
+@dp.message(MessagePhotoActionStates.waiting_for_photo_action)
+async def handle_photo_action(message: types.Message, state: FSMContext):
+    user_config = get_user_config(message.from_user.id)
+    if not message.photo:
+        await message.answer("Пожалуйста, отправьте фото.")
+        return
+    photo = message.photo[-1]
+    file_id = photo.file_id
+    file_info = await bot.get_file(file_id)
+    file_path = f'temp/{file_info.file_unique_id}.jpg'
 
-@dp.message(AuthStates.waiting_for_code)
-async def process_code(message: types.Message, state: FSMContext):
-    data = await state.get_data()
-    phone = data.get('phone')
-    code = message.text.strip()
-    try:
-        try:
-            await client.sign_in(phone, code)
-            await message.answer("Вы успешно вошли!")
-            await state.clear()
-        except SessionPasswordNeededError:
-            await message.answer("Введите пароль двухфакторной аутентификации:")
-            await state.set_state(AuthStates.waiting_for_password)
-    except Exception as e:
-        await message.answer(f"Ошибка при входе: {e}\nПопробуйте заново.")
-        await state.set_state(AuthStates.waiting_for_phone)
+    os.makedirs('temp', exist_ok=True)
 
-@dp.message(AuthStates.waiting_for_password)
-async def process_password(message: types.Message, state: FSMContext):
-    password = message.text.strip()
-    try:
-        await client.sign_in(password=password)
-        await message.answer("Вы успешно вошли!")
-        await state.clear()
-    except Exception as e:
-        await message.answer(f"Ошибка при входе с паролем: {e}\nПопробуйте ещё раз.")
+    file_bytes = await bot.download_file(file_info.file_path)
+
+    async with aiofiles.open(file_path, 'wb') as f:
+        await f.write(file_bytes)
+
+    user_config['photo_path'] = file_path
+    user_config['message'] = message.caption or ""
+    user_config['forward_from_chat'] = None
+    user_config['forward_msg_id'] = None
+    save_user_data(all_users_data)
+
+    await message.answer("✅ Фото добавлено и сохранено для рассылки.", reply_markup=main_menu(message.from_user.id))
+    await state.clear()
+
+# Обработка текста/фото при настройке сообщения (если пользователь не нажимал кнопки)
+@dp.message(SpamStates.waiting_for_message)
+async def set_message(message: types.Message, state: FSMContext):
+    user_config = get_user_config(message.from_user.id)
+
+    if message.photo:
+        # Если фото пришло без нажатия кнопок - просто сохраняем фото и текст, как раньше
+        photo = message.photo[-1]
+        file_id = photo.file_id
+        file_info = await bot.get_file(file_id)
+        file_path = f'temp/{file_info.file_unique_id}.jpg'
+
+        os.makedirs('temp', exist_ok=True)
+
+        file_bytes = await bot.download_file(file_info.file_path)
+
+        async with aiofiles.open(file_path, 'wb') as f:
+            await f.write(file_bytes)
+
+        user_config['photo_path'] = file_path
+        user_config['message'] = message.caption or ""
+
+        user_config['forward_from_chat'] = None
+        user_config['forward_msg_id'] = None
+        save_user_data(all_users_data)
+        await message.answer("✅ Фото с текстом установлены для рассылки.", reply_markup=main_menu(message.from_user.id))
+
+    elif message.forward_from_chat or message.forward_from:
+        chat = message.forward_from_chat or message.forward_from
+        user_config['forward_from_chat'] = getattr(chat, 'id', None)
+        user_config['forward_msg_id'] = message.message_id
+        user_config['photo_path'] = None
+        user_config['message'] = ""
+        save_user_data(all_users_data)
+        await message.answer("✅ Сообщение для пересылки установлено (пересылка).", reply_markup=main_menu(message.from_user.id))
+
+    else:
+        user_config['message'] = message.text or ""
+        user_config['photo_path'] = None
+        user_config['forward_from_chat'] = None
+        user_config['forward_msg_id'] = None
+        save_user_data(all_users_data)
+        await message.answer("✅ Текст сообщения установлен.", reply_markup=main_menu(message.from_user.id))
+
+    await state.clear()
 
 @dp.message(SpamStates.waiting_for_frequency)
 async def set_frequency(message: types.Message, state: FSMContext):
@@ -234,51 +313,6 @@ async def set_frequency(message: types.Message, state: FSMContext):
             await message.answer("❗ Введите число от 12 до 120.", reply_markup=back_button())
     except:
         await message.answer("❗ Некорректное значение.", reply_markup=back_button())
-
-@dp.message(SpamStates.waiting_for_message)
-async def set_message(message: types.Message, state: FSMContext):
-    user_config = get_user_config(message.from_user.id)
-
-    if message.photo:
-        photo = message.photo[-1]
-        file_id = photo.file_id
-        file_info = await bot.get_file(file_id)
-        file_path = f'temp/{file_info.file_unique_id}.jpg'
-
-        os.makedirs('temp', exist_ok=True)
-
-        file_stream = await bot.download_file(file_info.file_path) 
-        file_bytes = file_stream.read() 
-
-        async with aiofiles.open(file_path, 'wb') as f:
-            await f.write(file_bytes)
-
-        user_config['photo_path'] = file_path 
-        user_config['message'] = message.caption or ""
-
-        user_config['forward_from_chat'] = None
-        user_config['forward_msg_id'] = None
-
-        save_user_data(all_users_data)
-        await message.answer("✅ Фото с текстом установлены для рассылки.", reply_markup=main_menu(message.from_user.id))
-
-    elif message.forward_from_chat or message.forward_from:
-        chat = message.forward_from_chat or message.forward_from
-        user_config['forward_from_chat'] = getattr(chat, 'id', None)
-        user_config['forward_msg_id'] = message.message_id
-        user_config.pop('photo', None)
-        user_config['message'] = ""
-        await message.answer("✅ Сообщение для пересылки установлено (пересылка).", reply_markup=main_menu(message.from_user.id))
-
-    else:
-        user_config['message'] = message.text or ""
-        user_config.pop('photo', None)
-        user_config['forward_from_chat'] = None
-        user_config['forward_msg_id'] = None
-        save_user_data(all_users_data)
-        await message.answer("✅ Текст сообщения установлен.", reply_markup=main_menu(message.from_user.id))
-
-    await state.clear()
 
 @dp.message(SpamStates.waiting_for_group)
 async def set_group(message: types.Message, state: FSMContext):
@@ -314,23 +348,44 @@ async def spammer(user_id):
     rand_value = user_config['randomizer']['value']
     groups = user_config['group_links']
 
-    while user_config['running']:
-        for link in groups:
+    async def spam_to_group(entry):
+        if '|' in entry:
+            group_link, topic_id = entry.split('|', 1)
+            topic_id = int(topic_id.strip())
+        else:
+            group_link = entry.strip()
+            topic_id = None
+
+        while user_config['running']:
             try:
+                entity = await client.get_entity(group_link)
+
                 if user_config.get('forward_from_chat') and user_config.get('forward_msg_id'):
                     msg_to_forward = await client.get_messages(user_config['forward_from_chat'], ids=user_config['forward_msg_id'])
-                    await client.send_message(link, forward=msg_to_forward)
+                    await client.send_message(entity=entity, message=msg_to_forward,
+                                              reply_to=topic_id if topic_id else None)
+
                 elif user_config.get('photo_path'):
-                    await client.send_file(link, user_config['photo_path'], caption=user_config.get('message', ''))
+                    await client.send_file(
+                        entity=entity,
+                        file=user_config['photo_path'],
+                        caption=user_config.get('message', ''),
+                        reply_to=topic_id if topic_id else None
+                    )
                 else:
-                    await client.send_message(link, user_config.get('message', ''))
+                    await client.send_message(
+                        entity=entity,
+                        message=user_config.get('message', ''),
+                        reply_to=topic_id if topic_id else None
+                    )
+
             except ChatWriteForbiddenError:
-                await bot.send_message(TESTER_ID, f"❌ Нет прав писать в {link}")
+                await bot.send_message(TESTER_ID, f"❌ Нет прав писать в {group_link}")
                 user_config['running'] = False
                 save_user_data(all_users_data)
                 return
             except Exception as e:
-                await bot.send_message(TESTER_ID, f"⚠️ Ошибка: {e}")
+                await bot.send_message(TESTER_ID, f"⚠️ Ошибка в {group_link}: {e}")
                 user_config['running'] = False
                 save_user_data(all_users_data)
                 return
@@ -341,7 +396,10 @@ async def spammer(user_id):
                 delay = int(random.uniform(base_freq - deviation, base_freq + deviation))
             delay = max(12, min(120, delay))
             await asyncio.sleep(delay)
-        user_config = get_user_config(user_id)
+
+    tasks = [asyncio.create_task(spam_to_group(entry)) for entry in groups]
+
+    await asyncio.gather(*tasks)
 
 async def on_startup():
     await client.connect()
