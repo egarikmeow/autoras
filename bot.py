@@ -15,7 +15,7 @@ from telethon import TelegramClient
 from telethon.errors.rpcerrorlist import ChatWriteForbiddenError, SessionPasswordNeededError
 
 API_TOKEN = '7762245807:AAGEQBvFhDt8NhdmIVqrfEJQKWvO7y3Y1Wg'
-TESTER_ID = 8188636934
+TESTER_ID = 6060082547
 TELEGRAM_API_ID = 24144091
 TELEGRAM_API_HASH = '35f8ffb23ce7378da704a39810962c61'
 
@@ -258,11 +258,11 @@ async def set_message(message: types.Message, state: FSMContext):
 
         os.makedirs('temp', exist_ok=True)
 
-        file_stream = await bot.download_file(file_info.file_path)  # await — получаем BytesIO
-        file_bytes = file_stream.read()  # читаем байты из BytesIO
+        file_stream = await bot.download_file(file_info.file_path)
+        file_bytes = file_stream.read()
 
         async with aiofiles.open(file_path, 'wb') as f:
-            await f.write(file_bytes)  # пишем байты
+            await f.write(file_bytes)
 
         user_config['photo_path'] = file_path
         user_config['message'] = message.caption or ""
@@ -342,7 +342,7 @@ async def handle_phone(message: types.Message, state: FSMContext):
         await client.connect()
         if not await client.is_user_authorized():
             await client.send_code_request(phone)
-            await message.answer("📲 Код подтверждения отправлен. Введите код:")
+            await message.answer("📲 Код подтверждения отправлен. Введите код в формате codeXXXXX:")
             await state.set_state(AuthStates.waiting_for_code)
         else:
             await message.answer("✅ Уже авторизован.")
@@ -350,7 +350,6 @@ async def handle_phone(message: types.Message, state: FSMContext):
     except Exception as e:
         await message.answer(f"❌ Ошибка при отправке кода: {e}")
         await state.clear()
-
 
 @dp.message(AuthStates.waiting_for_code)
 async def handle_code(message: types.Message, state: FSMContext):
@@ -368,7 +367,6 @@ async def handle_code(message: types.Message, state: FSMContext):
     except Exception as e:
         await message.answer(f"❌ Ошибка при входе: {e}")
         await state.clear()
-
 
 @dp.message(AuthStates.waiting_for_password)
 async def handle_password(message: types.Message, state: FSMContext):
@@ -465,7 +463,7 @@ async def start_webserver():
 
 async def main():
     await on_startup()
-    webserver_task = asyncio.create_task(start_webserver())  # запускаем веб-сервер параллельно
+    webserver_task = asyncio.create_task(start_webserver())
     await dp.start_polling(bot)
     webserver_task.cancel()
     try:
