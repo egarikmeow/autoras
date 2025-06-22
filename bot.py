@@ -332,6 +332,53 @@ async def set_random_value(message: types.Message, state: FSMContext):
     except:
         await message.answer("❗ Некорректное значение.", reply_markup=back_button())
 
+@dp.message(AuthStates.waiting_for_phone)
+async def handle_phone(message: types.Message, state: FSMContext):
+    phone = message.text.strip()
+    await state.update_data(phone=phone)
+
+    try:
+        await client.connect()
+        if not await client.is_user_authorized():
+            await client.send_code_request(phone)
+            await message.answer("📲 Код подтверждения отправлен. Введите код:")
+            await state.set_state(AuthStates.waiting_for_code)
+        else:
+            await message.answer("✅ Уже авторизован.")
+            await state.clear()
+    except Exception as e:
+        await message.answer(f"❌ Ошибка при отправке кода: {e}")
+        await state.clear()
+
+
+@dp.message(AuthStates.waiting_for_code)
+async def handle_code(message: types.Message, state: FSMContext):
+    code = message.text.strip()
+    data = await state.get_data()
+    phone = data.get("phone")
+
+    try:
+        await client.sign_in(phone=phone, code=code)
+        await message.answer("✅ Успешно авторизован!")
+        await state.clear()
+    except SessionPasswordNeededError:
+        await message.answer("🔐 Необходим пароль двухфакторной аутентификации. Введите пароль:")
+        await state.set_state(AuthStates.waiting_for_password)
+    except Exception as e:
+        await message.answer(f"❌ Ошибка при входе: {e}")
+        await state.clear()
+
+
+@dp.message(AuthStates.waiting_for_password)
+async def handle_password(message: types.Message, state: FSMContext):
+    password = message.text.strip()
+    try:
+        await client.sign_in(password=password)
+        await message.answer("✅ Успешно авторизован с паролем.")
+    except Exception as e:
+        await message.answer(f"❌ Ошибка при вводе пароля: {e}")
+    await state.clear()
+
 async def spammer(user_id):
     user_config = get_user_config(user_id)
     base_freq = user_config['frequency']
