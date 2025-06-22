@@ -77,7 +77,8 @@ def main_menu(user_id):
         [InlineKeyboardButton(text="Рандомайзер", callback_data="random_menu"),
          InlineKeyboardButton(text="Группы", callback_data="group_menu")],
         [InlineKeyboardButton(text="Запустить" if not user_config['running'] else "Остановить", callback_data="toggle_spam")],
-        [InlineKeyboardButton(text="Войти в Телеграм", callback_data="login")]
+        [InlineKeyboardButton(text="Войти в Телеграм", callback_data="login")],
+        [InlineKeyboardButton(text="Сбросить сессию", callback_data="reset_session")]
     ])
 
 def randomizer_menu():
@@ -218,6 +219,29 @@ async def callback_handler(callback: types.CallbackQuery, state: FSMContext):
             await callback.message.answer("✅ Рассылка запущена", reply_markup=main_menu(user_id))
             asyncio.create_task(spammer(user_id))
 
+    elif data == "reset_session":
+        try:
+            await client.disconnect()
+        except Exception as e:
+            print(f"Ошибка при отключении Telethon: {e}")
+
+        try:
+            client.session.close()
+        except Exception as e:
+            print(f"Ошибка при закрытии session: {e}")
+
+        await asyncio.sleep(0.2)
+
+        session_path = "session_name.session"
+        if os.path.exists(session_path):
+            try:
+                os.remove(session_path)
+                await callback.message.answer("🗑 Сессия сброшена. Вы можете войти с нового аккаунта.", reply_markup=main_menu(user_id))
+            except Exception as e:
+                await callback.message.answer(f"⚠️ Не удалось удалить файл: {e}")
+        else:
+            await callback.message.answer("⚠️ Сессия уже пуста или не найдена.", reply_markup=main_menu(user_id))
+
 @dp.message(MessagePhotoActionStates.waiting_for_photo_action)
 async def handle_photo_action(message: types.Message, state: FSMContext):
     user_config = get_user_config(message.from_user.id)
@@ -342,7 +366,7 @@ async def handle_phone(message: types.Message, state: FSMContext):
         await client.connect()
         if not await client.is_user_authorized():
             await client.send_code_request(phone)
-            await message.answer("📲 Код подтверждения отправлен. Введите код в формате codeXXXXX:")
+            await message.answer("📲 Код подтверждения отправлен.\n❗ВАЖНО! Вводите код по формату codeXXXXX, иначе Telegram его не примет!\nВведите код в формате codeXXXXX:")
             await state.set_state(AuthStates.waiting_for_code)
         else:
             await message.answer("✅ Уже авторизован.")
