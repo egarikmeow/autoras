@@ -14,8 +14,8 @@ from aiogram.fsm.context import FSMContext
 from telethon import TelegramClient
 from telethon.errors.rpcerrorlist import ChatWriteForbiddenError, SessionPasswordNeededError
 
-API_TOKEN = '7762245807:AAECd6IRji1tHFpIB6b89XCVZTEWP-Z7HPc'
-TESTER_ID = 8157553124
+API_TOKEN = '8137907851:AAGv7byfZUXxigL5ReHhW0NZp-ad7FdbLMc'
+TESTER_ID = 6060082547
 TELEGRAM_API_ID = 24144091
 TELEGRAM_API_HASH = '35f8ffb23ce7378da704a39810962c61'
 
@@ -122,6 +122,8 @@ async def cmd_start(message: types.Message):
 
 @dp.callback_query()
 async def callback_handler(callback: types.CallbackQuery, state: FSMContext):
+    global client  # Объявляем глобальную переменную сразу в начале функции
+
     if callback.from_user.id != TESTER_ID:
         return await callback.answer("Нет доступа", show_alert=True)
 
@@ -230,17 +232,23 @@ async def callback_handler(callback: types.CallbackQuery, state: FSMContext):
         except Exception as e:
             print(f"Ошибка при закрытии session: {e}")
 
+        client.session = None
+
         await asyncio.sleep(0.2)
 
-        session_path = "session_name.session"
-        if os.path.exists(session_path):
+        session_base = "session_name"
+        for ext in ["", ".session", ".session-journal", ".session-wal", ".session-shm"]:
             try:
-                os.remove(session_path)
-                await callback.message.answer("🗑 Сессия сброшена. Вы можете войти с нового аккаунта.", reply_markup=main_menu(user_id))
+                os.remove(f"{session_base}{ext}")
+            except FileNotFoundError:
+                continue
             except Exception as e:
-                await callback.message.answer(f"⚠️ Не удалось удалить файл: {e}")
-        else:
-            await callback.message.answer("⚠️ Сессия уже пуста или не найдена.", reply_markup=main_menu(user_id))
+                await callback.message.answer(f"⚠️ Ошибка при удалении {ext}: {e}")
+                return
+
+        client = TelegramClient("session_name", TELEGRAM_API_ID, TELEGRAM_API_HASH)
+
+        await callback.message.answer("🗑 Сессия сброшена. Вы можете войти с нового аккаунта.", reply_markup=main_menu(user_id))
 
 @dp.message(MessagePhotoActionStates.waiting_for_photo_action)
 async def handle_photo_action(message: types.Message, state: FSMContext):
