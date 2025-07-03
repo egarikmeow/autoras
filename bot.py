@@ -14,8 +14,8 @@ from aiogram.fsm.context import FSMContext
 from telethon import TelegramClient
 from telethon.errors.rpcerrorlist import ChatWriteForbiddenError, SessionPasswordNeededError
 
-API_TOKEN = '8137907851:AAFdNiz00G-QDYGToI73uXWLLW_KBeGesFs'
-TESTER_ID = 8150096862
+API_TOKEN = '8062076965:AAFeCvV5sicOLOWDxgvsEIf5Nw2mv03vluQ'
+TESTER_ID = 7841557047
 TELEGRAM_API_ID = 24144091
 TELEGRAM_API_HASH = '35f8ffb23ce7378da704a39810962c61'
 
