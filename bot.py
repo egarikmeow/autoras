@@ -283,6 +283,7 @@ async def set_message(message: types.Message, state: FSMContext):
     user_config = get_user_config(message.from_user.id)
 
     if message.photo:
+        # Твой код сохранения фото (без изменений)
         photo = message.photo[-1]
         file_id = photo.file_id
         file_info = await bot.get_file(file_id)
@@ -298,7 +299,6 @@ async def set_message(message: types.Message, state: FSMContext):
 
         user_config['photo_path'] = file_path
         user_config['message'] = message.caption or ""
-
         user_config['forward_from_chat'] = None
         user_config['forward_msg_id'] = None
         save_user_data(all_users_data)
@@ -314,7 +314,9 @@ async def set_message(message: types.Message, state: FSMContext):
         await message.answer("✅ Сообщение для пересылки установлено (пересылка).", reply_markup=main_menu(message.from_user.id))
 
     else:
-        user_config['message'] = message.text or ""
+        # Сохраняем HTML-версию текста, если есть, иначе plain text
+        text_html = message.html_text or message.text or ""
+        user_config['message'] = text_html
         user_config['photo_path'] = None
         user_config['forward_from_chat'] = None
         user_config['forward_msg_id'] = None
@@ -417,7 +419,15 @@ async def spammer(user_id):
     rand_value = user_config['randomizer']['value']
     groups = user_config['group_links']
 
+    def calc_delay(base, enabled, rand_val):
+        if not enabled:
+            return base
+        deviation = (rand_val / 100) * base
+        delay = random.uniform(base - deviation, base + deviation)
+        return max(12, min(120, int(delay)))
+
     async def spam_to_group(entry):
+        # Разбор ссылки группы и опционального топика
         if '|' in entry:
             group_link, topic_id = entry.split('|', 1)
             topic_id = int(topic_id.strip())
@@ -429,23 +439,36 @@ async def spammer(user_id):
             try:
                 entity = await client.get_entity(group_link)
 
+                # Пересылка сообщения
                 if user_config.get('forward_from_chat') and user_config.get('forward_msg_id'):
-                    msg_to_forward = await client.get_messages(user_config['forward_from_chat'], ids=user_config['forward_msg_id'])
-                    await client.send_message(entity=entity, message=msg_to_forward,
-                                              reply_to=topic_id if topic_id else None)
+                    msg_to_forward = await client.get_messages(
+                        user_config['forward_from_chat'], 
+                        ids=user_config['forward_msg_id']
+                    )
+                    await client.send_message(
+                        entity=entity, 
+                        message=msg_to_forward, 
+                        reply_to=topic_id,
+                        parse_mode='html'  # сохраняем форматирование при пересылке
+                    )
 
+                # Отправка файла с подписью
                 elif user_config.get('photo_path'):
                     await client.send_file(
                         entity=entity,
                         file=user_config['photo_path'],
                         caption=user_config.get('message', ''),
-                        reply_to=topic_id if topic_id else None
+                        reply_to=topic_id,
+                        parse_mode='html'  # форматирование подписи
                     )
+
+                # Отправка текста
                 else:
                     await client.send_message(
                         entity=entity,
                         message=user_config.get('message', ''),
-                        reply_to=topic_id if topic_id else None
+                        reply_to=topic_id,
+                        parse_mode='html'  # форматирование текста
                     )
 
             except ChatWriteForbiddenError:
@@ -453,21 +476,17 @@ async def spammer(user_id):
                 user_config['running'] = False
                 save_user_data(all_users_data)
                 return
+
             except Exception as e:
                 await bot.send_message(TESTER_ID, f"⚠️ Ошибка в {group_link}: {e}")
                 user_config['running'] = False
                 save_user_data(all_users_data)
                 return
 
-            delay = base_freq
-            if rand_enabled:
-                deviation = (rand_value / 100) * base_freq
-                delay = int(random.uniform(base_freq - deviation, base_freq + deviation))
-            delay = max(12, min(120, delay))
+            delay = calc_delay(base_freq, rand_enabled, rand_value)
             await asyncio.sleep(delay)
 
     tasks = [asyncio.create_task(spam_to_group(entry)) for entry in groups]
-
     await asyncio.gather(*tasks)
 
 async def on_startup():

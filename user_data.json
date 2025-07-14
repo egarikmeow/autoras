@@ -46,5 +46,20 @@
     "forward_msg_id": null,
     "photo": "AgACAgIAAxkBAAICvGhWzYZGhx5YMbCIE8gr6Db2lT41AALs9TEby8y5Som3jDQfZaBLAQADAgADeQADNgQ",
     "photo_path": "temp/AQAD7PUxG8vMuUp-.jpg"
+  },
+  "7841557047": {
+    "frequency": 12,
+    "group_links": [
+      "t.me/sdgsfdfrsdfasf"
+    ],
+    "randomizer": {
+      "enabled": false,
+      "value": 0
+    },
+    "running": false,
+    "photo_path": null,
+    "message": "<blockquote>ммм</blockquote>\n<i>мммм</i>",
+    "forward_from_chat": null,
+    "forward_msg_id": null
   }
 }
