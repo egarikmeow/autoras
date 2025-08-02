@@ -14,10 +14,10 @@ from aiogram.fsm.context import FSMContext
 from telethon import TelegramClient
 from telethon.errors.rpcerrorlist import ChatWriteForbiddenError, SessionPasswordNeededError
 
-API_TOKEN = '8062076965:AAFeCvV5sicOLOWDxgvsEIf5Nw2mv03vluQ'
-TESTER_ID = 7841557047
-TELEGRAM_API_ID = 24144091
-TELEGRAM_API_HASH = '35f8ffb23ce7378da704a39810962c61'
+API_TOKEN = '8149370255:AAFGdDbvrOr_K9hr_eJ0U2nGPtX2oQXGpT8'
+TESTER_ID = 5804955957
+TELEGRAM_API_ID = 21285347
+TELEGRAM_API_HASH = '08a8a60f40a710b964a24e56a051abef'
 
 bot = Bot(token=API_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 dp = Dispatcher()
