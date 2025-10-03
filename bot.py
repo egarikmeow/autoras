@@ -15,7 +15,7 @@ from telethon import TelegramClient
 from telethon.errors.rpcerrorlist import ChatWriteForbiddenError, SessionPasswordNeededError
 
 API_TOKEN = '8149370255:AAFGdDbvrOr_K9hr_eJ0U2nGPtX2oQXGpT8'
-TESTER_ID = 8083727415
+TESTER_ID = 7669462893
 TELEGRAM_API_ID = 21285347
 TELEGRAM_API_HASH = '08a8a60f40a710b964a24e56a051abef'
 
