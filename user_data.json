@@ -1,0 +1,15 @@
+{
+  "7669462893": {
+    "frequency": 20,
+    "group_links": [],
+    "randomizer": {
+      "enabled": true,
+      "value": 25
+    },
+    "running": false,
+    "photo_path": "temp/AQADSAtrG7ppUUd-.jpg",
+    "message": "Связь: @.clqudy (БЕЗ ТОЧКИ) \nЕсли бан: @ClqudBot",
+    "forward_from_chat": null,
+    "forward_msg_id": null
+  }
+}
